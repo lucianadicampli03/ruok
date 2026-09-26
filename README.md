@@ -39,8 +39,17 @@ All on one ESP32. See the comments at the top of `firmware/ruok_esp32/ruok_esp32
 
 There is **no lid servo** on this map yet. Open the lunchbox by hand for the demo.
 
-## Later (not Hour 1)
+## Hour 2 — talk (this is next after Serial Monitor JSON)
 
-- ElevenLabs instead of Windows voice
-- Google ADK agents (Greeter / Pilot / Watch) in `software/agents.py`
+Same `python software\brain.py`. Watch / Pilot / Greeter already pick stop / approach / the spoken line. No API keys needed: the HP uses the Windows voice.
+
+Optional, for the prize path — copy `.env.example` to `.env` on the HP and paste keys:
+
+- `ELEVENLABS_API_KEY` — human voice from the speakers
+- `GEMINI_API_KEY` — Greeter writes a fresh sentence from wet/dark/need
+
+Then run `python software\brain.py` again. The panel shows `voice=elevenlabs` or `voice=windows`.
+
+## Later
+
 - Phone camera + YOLO person-detect, AND-ed with PIR

@@ -17,9 +17,10 @@ import time
 import tkinter as tk
 from tkinter import ttk
 
-from situation import Situation, parse_packet
-from speak import speak
+from agents import AgentOut, greeter, pilot, watch
 from serial_link import SerialLink, list_ports
+from situation import Situation, parse_packet
+from speak import speak, voice_engine
 
 TALK_MIN_CM = 40
 TALK_MAX_CM = 160
@@ -28,19 +29,6 @@ UNSAFE_CM = 30
 # Flip RAIN_WET_ABOVE if your module goes up when wet.
 RAIN_WET_BELOW = 1500
 DARK_BELOW = 800
-
-LINES = {
-    "ruok": "Hey. Are you okay? Food, medicine, or a place to stay?",
-    "food": "I can share what's in the box, or walk you toward a pantry.",
-    "meds": "I can offer what's in the box, or help you find a clinic.",
-    "shelter": "I can walk with you toward somewhere dry and safe.",
-    "walk": "Okay. Stay near me and I will go slowly.",
-    "wet": "It's wet. I will keep the box closed. I can take you somewhere dry.",
-    "dark": "It's dark. I can walk you somewhere with more light.",
-    "stop": "I've got you. I'm stopping.",
-    "bye": "Okay. I'm here if you need me.",
-}
-
 
 class Brain:
     def __init__(self, link: SerialLink | None):
@@ -57,28 +45,28 @@ class Brain:
         if self.link:
             self.link.send(cmd)
 
-    def speak_line(self, key: str) -> None:
-        speak(LINES[key])
-        self.events.put(f"said: {LINES[key]}")
+    def apply(self, out: AgentOut | None) -> None:
+        if not out:
+            return
+        if out.cmd:
+            self.send(out.cmd)
+        if out.line:
+            speak(out.line)
+            who = out.agent or "brain"
+            self.events.put(f"{who}: {out.line}")
 
     def choose_need(self, need: str) -> None:
         self.need = need
-        self.state = "helping"
         sit = self.last_sit
-        if sit.wet:
-            self.speak_line("wet")
-            self.send("stop")
+        veto = watch(sit)
+        if veto:
+            self.apply(veto)
+            self.send("beep")
+            self.state = "talking"
             return
-        if need == "walk":
-            self.speak_line("walk")
-            if sit.dark:
-                self.speak_line("dark")
-            self.state = "guiding"
-            self.send("follow")
-            return
-        if sit.dark:
-            self.speak_line("dark")
-        self.speak_line(need)
+        out = greeter(sit, need)
+        self.apply(out)
+        self.state = "guiding" if need == "walk" and not sit.wet else "helping"
 
     def on_packet(self, raw: dict) -> None:
         sit = parse_packet(
@@ -92,46 +80,48 @@ class Brain:
         self.last_sit = sit
         now = time.time()
 
-        if sit.unsafe or sit.jostled:
-            self.send("stop")
+        veto = watch(sit)
+        if veto:
             if now - self.last_stop_line > 4:
-                self.speak_line("stop")
+                self.apply(veto)
                 self.send("beep")
                 self.last_stop_line = now
+            else:
+                self.send("stop")
             if self.state in ("approaching", "guiding"):
                 self.state = "talking" if sit.in_talk_range else "idle"
             return
 
         if self.state == "idle":
-            if sit.someone:
+            move = pilot(sit, self.state)
+            if move:
+                self.apply(move)
                 self.state = "approaching"
-                self.send("approach")
-                self.events.put("PIR — approaching")
+                self.events.put("pilot: approaching")
         elif self.state == "approaching":
+            move = pilot(sit, self.state)
             if sit.in_talk_range:
-                self.send("stop")
+                self.apply(move or AgentOut(cmd="stop", agent="pilot"))
                 self.state = "talking"
                 if now - self.last_greet > 8:
-                    self.speak_line("ruok")
+                    self.apply(greeter(sit, None))
                     self.last_greet = now
             elif not sit.someone:
-                self.send("stop")
+                self.apply(move or AgentOut(cmd="stop", agent="pilot"))
                 self.state = "idle"
         elif self.state == "talking":
             if sit.tapped and now - self.last_greet > 2:
                 self.choose_need("food")
             if not sit.someone and not sit.in_talk_range:
                 self.state = "idle"
-                self.speak_line("bye")
+                self.apply(greeter(sit, "bye"))
         elif self.state == "guiding":
-            if sit.in_talk_range:
-                self.send("follow")
-            elif sit.us_cm > 0 and sit.us_cm < TALK_MIN_CM:
-                self.send("stop")
+            self.apply(pilot(sit, self.state))
             if sit.tapped:
                 self.send("stop")
                 self.state = "talking"
-                self.speak_line("ruok")
+                self.apply(greeter(sit, None))
+                self.last_greet = now
 
 
 def build_ui(brain: Brain) -> tk.Tk:
@@ -182,7 +172,9 @@ def build_ui(brain: Brain) -> tk.Tk:
 
     def tick() -> None:
         sit = brain.last_sit
-        status.config(text=f"{brain.state}   need={brain.need or '—'}")
+        status.config(
+            text=f"{brain.state}   need={brain.need or '—'}   voice={voice_engine()}"
+        )
         sensors.config(
             text=(
                 f"pir={int(sit.pir)}  us={sit.us_cm}cm  obstacle={int(sit.obstacle)}  "
@@ -252,7 +244,8 @@ def main() -> int:
 
     brain = Brain(link)
     threading.Thread(target=packet_loop, args=(brain, args.demo), daemon=True).start()
-    print("RUOK panel open. Close Serial Monitor in Arduino IDE first.")
+    print("RUOK panel open. Voice:", voice_engine())
+    print("Close Serial Monitor in Arduino IDE first.")
     build_ui(brain).mainloop()
     if link:
         link.close()
