@@ -2,54 +2,55 @@
 
 A lunchbox robot that rolls up, asks **are you okay?**, and helps with food, medicine, or shelter.
 
-Write code anywhere. **Run it on the HP** — that machine has USB-A for the ESP32. This Mac has no adaptor.
+Run everything on the **HP** (USB-A). This Mac has no adaptor.
 
-## On the HP (do this)
+## On the HP
 
 1. Install [Python 3](https://www.python.org/downloads/) and [Arduino IDE 2](https://www.arduino.cc/en/software).
-2. Arduino IDE → Boards Manager → **esp32 by Espressif**. Library Manager → **DHT sensor library** (Adafruit) + **Adafruit Unified Sensor**.
-3. Clone this repo, plug the ESP32 into the HP, pick **ESP32 Dev Module** and the `COMx` port.
+2. Boards Manager → **esp32 by Espressif**. Library Manager → **DHT sensor library** (Adafruit) + **Adafruit Unified Sensor**.
+3. `git clone` / `git pull` this repo. Plug in the ESP32. Board = **ESP32 Dev Module**.
 4. Upload `firmware/ruok_esp32/ruok_esp32.ino`.
-5. Open Serial Monitor at **115200**. Wave at the PIR. You should see JSON. Then **close** the Monitor (only one app can use the cable).
-6. In PowerShell:
+5. Serial Monitor **115200** — wave at PIR, see JSON, then **close** it.
+6. PowerShell:
 
 ```bat
-cd path\to\ruok
+cd ruok
 pip install -r software\requirements.txt
 python software\brain.py
 ```
 
-If it cannot find the board: `python software\brain.py --port COM4`  
-If the board is busy or you just want to hear the voice: `python software\brain.py --demo`
+`--port COM4` if it misses the board. `--demo` to hear voice with no robot.
 
-Speakers / laptop volume = the HP. Windows will speak the lines out loud.
+Optional eyes (phone/webcam taped on the front, DroidCam counts as a camera):
 
-## What you should see
+```bat
+pip install -r software\requirements-vision.txt
+python software\brain.py --vision
+python software\brain.py --vision --require-person
+```
 
-- PIR motion → wheels approach (ULN2003 on D12/D14/D18/D19)
-- Ultrasonic in talk range (~40–160 cm) → stop → “Hey. Are you okay?…”
-- Buttons: Food / Medicine / Shelter / Walk with me
-- Touch pad on the robot also picks Food if you cannot reach the laptop
-- Rain / humidity → it will not offer to open the box
-- Obstacle, too-close ultrasonic, or vibration → stop + beep
+## Demo beat
+
+PIR (and optional YOLO person) → wheels approach → ultrasonic talk-range → stop → “Are you okay?” → Food / Medicine / Shelter / Walk. Walk opens Google Maps walking directions to a Miami help site. Rain keeps the box closed and pushes shelter.
+
+Agents: **Watch** (safety veto), **Pilot** (wheels), **Greeter** (spoken line + resource).
 
 ## Pins
 
-All on one ESP32. See the comments at the top of `firmware/ruok_esp32/ruok_esp32.ino`.
+See the top of `firmware/ruok_esp32/ruok_esp32.ino`. No lid servo on the map — open the lunchbox by hand.
 
-There is **no lid servo** on this map yet. Open the lunchbox by hand for the demo.
+## API keys (only if you want the prize path)
 
-## Hour 2 — talk (this is next after Serial Monitor JSON)
+The robot **runs with zero keys**. Windows speaks. Places come from `software/resources.json`.
 
-Same `python software\brain.py`. Watch / Pilot / Greeter already pick stop / approach / the spoken line. No API keys needed: the HP uses the Windows voice.
+Copy `.env.example` to `.env` next to this README and paste:
 
-Optional, for the prize path — copy `.env.example` to `.env` on the HP and paste keys:
+| Key | Where to get it | What it does |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) | Greeter writes a new sentence from wet/dark/need |
+| `ELEVENLABS_API_KEY` | [ElevenLabs](https://elevenlabs.io/app/settings/api-keys) or MLH table | Human voice on the speakers |
+| `ELEVENLABS_VOICE_ID` | optional | Defaults to Rachel (`21m00Tcm4TlvDq8ikWAM`) |
 
-- `ELEVENLABS_API_KEY` — human voice from the speakers
-- `GEMINI_API_KEY` — Greeter writes a fresh sentence from wet/dark/need
+No Google Maps key. Directions use a public maps link.
 
-Then run `python software\brain.py` again. The panel shows `voice=elevenlabs` or `voice=windows`.
-
-## Later
-
-- Phone camera + YOLO person-detect, AND-ed with PIR
+Do not commit `.env`.

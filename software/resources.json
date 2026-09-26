@@ -1,0 +1,48 @@
+{
+  "food": [
+    {
+      "name": "Camillus House dining hall",
+      "address": "1603 NW 7th Ave, Miami, FL 33136",
+      "note": "Meals and emergency help"
+    },
+    {
+      "name": "Miami Rescue Mission",
+      "address": "2020 NW 1st Ave, Miami, FL 33127",
+      "note": "Food and shelter"
+    },
+    {
+      "name": "Farm Share Miami",
+      "address": "Check farmshare.org for today's produce giveaway",
+      "note": "Free produce"
+    }
+  ],
+  "meds": [
+    {
+      "name": "Jackson Memorial Hospital",
+      "address": "1611 NW 12th Ave, Miami, FL 33136",
+      "note": "Emergency and clinic care"
+    },
+    {
+      "name": "Jessie Trice Community Health",
+      "address": "5361 NW 22nd Ave, Miami, FL 33142",
+      "note": "Low-cost clinic"
+    }
+  ],
+  "shelter": [
+    {
+      "name": "Camillus House",
+      "address": "1603 NW 7th Ave, Miami, FL 33136",
+      "note": "Shelter, meals, case work"
+    },
+    {
+      "name": "Chapman Partnership",
+      "address": "1550 N Miami Ave, Miami, FL 33136",
+      "note": "Homeless assistance"
+    },
+    {
+      "name": "Lotus House",
+      "address": "Women and children — call 305-438-0866",
+      "note": "Safe housing"
+    }
+  ]
+}

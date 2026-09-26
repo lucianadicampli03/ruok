@@ -21,6 +21,7 @@ class Situation:
     dark: bool = False
     jostled: bool = False
     tapped: bool = False
+    person: bool | None = None
     raw: dict = field(default_factory=dict)
 
 
@@ -38,6 +39,8 @@ def parse_packet(
     unsafe_cm: int = 30,
     rain_wet_below: int = 1500,
     dark_below: int = 800,
+    person: bool | None = None,
+    require_person: bool = False,
 ) -> Situation:
     pir = int(_num(raw, "pir", 0)) == 1
     us = int(_num(raw, "us_cm", -1))
@@ -52,6 +55,12 @@ def parse_packet(
     dark = 0 < light < dark_below
     in_talk = talk_min <= us <= talk_max
     unsafe = obstacle or (0 < us < unsafe_cm)
+    if require_person and person is not None:
+        someone = pir and person
+    elif person is True:
+        someone = True
+    else:
+        someone = pir
 
     return Situation(
         pir=pir,
@@ -63,12 +72,13 @@ def parse_packet(
         humidity=humidity,
         temp_c=_num(raw, "temp_c", -1),
         vibe=vibe,
-        someone=pir,
+        someone=someone,
         in_talk_range=in_talk,
         unsafe=unsafe,
         wet=wet,
         dark=dark,
         jostled=vibe,
         tapped=touch,
+        person=person,
         raw=raw,
     )

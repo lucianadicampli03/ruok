@@ -13,13 +13,14 @@ import urllib.request
 from dataclasses import dataclass
 
 from envload import load_env
+from resources import as_prompt, spoken
 from situation import Situation
 
 load_env()
 
 LINES = {
     "ruok": "Hey. Are you okay? Food, medicine, or a place to stay?",
-    "food": "I can share what's in the box, or walk you toward a pantry.",
+    "food": "I can share what's in the box, or walk you toward food.",
     "meds": "I can offer what's in the box, or help you find a clinic.",
     "shelter": "I can walk with you toward somewhere dry and safe.",
     "walk": "Okay. Stay near me and I will go slowly.",
@@ -45,18 +46,26 @@ def watch(sit: Situation) -> AgentOut | None:
 
 def greeter(sit: Situation, need: str | None) -> AgentOut:
     if sit.wet and need in ("food", "meds", None):
-        return AgentOut(line=_maybe_gemini(sit, "wet"), cmd="stop", agent="greeter")
+        line = _line(sit, "wet") + " " + spoken("shelter")
+        return AgentOut(line=line.strip(), cmd="stop", agent="greeter")
     if need == "walk":
-        line = _maybe_gemini(sit, "walk")
+        place_need = "shelter" if sit.wet or sit.dark else "food"
+        line = _line(sit, "walk") + " " + spoken(place_need)
         if sit.dark:
             line = line + " " + LINES["dark"]
-        return AgentOut(line=line, cmd="follow", agent="greeter")
+        return AgentOut(line=line.strip(), cmd="follow", agent="greeter")
+    if need in ("food", "meds", "shelter"):
+        line = _line(sit, need) + " " + spoken(need)
+        if sit.dark:
+            line = line + " " + LINES["dark"]
+        return AgentOut(line=line.strip(), cmd="stop", agent="greeter")
     if need in LINES:
-        line = _maybe_gemini(sit, need)
-        if sit.dark:
-            line = line + " " + LINES["dark"]
-        return AgentOut(line=line, cmd="stop", agent="greeter")
-    return AgentOut(line=_maybe_gemini(sit, "ruok"), cmd="stop", agent="greeter")
+        return AgentOut(line=_line(sit, need), cmd="stop", agent="greeter")
+    return AgentOut(line=_line(sit, "ruok"), cmd="stop", agent="greeter")
+
+
+def _line(sit: Situation, need: str) -> str:
+    return _maybe_gemini(sit, need)
 
 
 def pilot(sit: Situation, state: str) -> AgentOut | None:
@@ -81,9 +90,9 @@ def _maybe_gemini(sit: Situation, need: str) -> str:
     if not key:
         return fallback
     prompt = (
-        "You are RUOK, a small help robot. Say ONE short spoken sentence (max 18 words). "
-        "No lists, no emoji, no name-asking. Need=%s. Wet=%s Dark=%s Distance_cm=%s."
-        % (need, sit.wet, sit.dark, sit.us_cm)
+        "You are RUOK, a small help robot. Say ONE short spoken sentence (max 20 words). "
+        "No lists, no emoji, no name-asking. Need=%s. Wet=%s Dark=%s Person=%s. %s"
+        % (need, sit.wet, sit.dark, sit.person, as_prompt(need if need in ("food", "meds", "shelter", "wet", "walk") else "food"))
     )
     try:
         return _gemini(key, prompt) or fallback

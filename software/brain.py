@@ -2,8 +2,9 @@
 """RUOK laptop brain — run this on the HP with the ESP32 plugged in.
 
   python software/brain.py
-  python software/brain.py --demo          # no board, fake sensors
+  python software/brain.py --demo
   python software/brain.py --port COM4
+  python software/brain.py --vision
 """
 
 from __future__ import annotations
@@ -14,13 +15,16 @@ import queue
 import sys
 import threading
 import time
+import webbrowser
 import tkinter as tk
 from tkinter import ttk
 
 from agents import AgentOut, greeter, pilot, watch
+from resources import maps_url, pick
 from serial_link import SerialLink, list_ports
 from situation import Situation, parse_packet
 from speak import speak, voice_engine
+from vision import Eyes
 
 TALK_MIN_CM = 40
 TALK_MAX_CM = 160
@@ -31,15 +35,22 @@ RAIN_WET_BELOW = 1500
 DARK_BELOW = 800
 
 class Brain:
-    def __init__(self, link: SerialLink | None):
+    def __init__(
+        self,
+        link: SerialLink | None,
+        eyes: Eyes | None = None,
+        require_person: bool = False,
+    ):
         self.link = link
+        self.eyes = eyes
+        self.require_person = require_person
         self.state = "idle"
         self.need = None
         self.last_sit = Situation()
         self.last_greet = 0.0
         self.last_stop_line = 0.0
-        self.said_wet = False
         self.events: queue.Queue[str] = queue.Queue()
+        self.place_label = ""
 
     def send(self, cmd: str) -> None:
         if self.link:
@@ -66,9 +77,14 @@ class Brain:
             return
         out = greeter(sit, need)
         self.apply(out)
+        place = pick("shelter" if need in ("walk", "wet") else need)
+        if place:
+            self.place_label = f"{place['name']} — {place['address']}"
+            self.events.put("place: " + self.place_label)
         self.state = "guiding" if need == "walk" and not sit.wet else "helping"
 
     def on_packet(self, raw: dict) -> None:
+        person = self.eyes.person if self.eyes else None
         sit = parse_packet(
             raw,
             talk_min=TALK_MIN_CM,
@@ -76,6 +92,8 @@ class Brain:
             unsafe_cm=UNSAFE_CM,
             rain_wet_below=RAIN_WET_BELOW,
             dark_below=DARK_BELOW,
+            person=person,
+            require_person=self.require_person,
         )
         self.last_sit = sit
         now = time.time()
@@ -128,7 +146,7 @@ def build_ui(brain: Brain) -> tk.Tk:
     root = tk.Tk()
     root.title("RUOK")
     root.configure(bg="#111111")
-    root.geometry("720x520")
+    root.geometry("780x580")
 
     title = tk.Label(
         root,
@@ -143,6 +161,8 @@ def build_ui(brain: Brain) -> tk.Tk:
     status.pack()
     sensors = tk.Label(root, text="", fg="#cfc8bc", bg="#111111", font=("Menlo", 12), justify="left")
     sensors.pack(pady=8)
+    place = tk.Label(root, text="", fg="#e2c27a", bg="#111111", font=("Helvetica", 13), wraplength=720)
+    place.pack(pady=(0, 6))
 
     log = tk.Text(root, height=8, bg="#1c1c1c", fg="#e8e2d6", insertbackground="#e8e2d6")
     log.pack(fill="both", expand=True, padx=16, pady=8)
@@ -152,6 +172,9 @@ def build_ui(brain: Brain) -> tk.Tk:
 
     def press(need: str) -> None:
         brain.choose_need(need)
+        url = maps_url("shelter" if need == "walk" else need)
+        if url:
+            webbrowser.open(url)
         log.insert("end", f"need → {need}\n")
         log.see("end")
 
@@ -177,12 +200,13 @@ def build_ui(brain: Brain) -> tk.Tk:
         )
         sensors.config(
             text=(
-                f"pir={int(sit.pir)}  us={sit.us_cm}cm  obstacle={int(sit.obstacle)}  "
-                f"touch={int(sit.touch)}  rain={sit.rain}  light={sit.light}\n"
-                f"humidity={sit.humidity}  temp={sit.temp_c}  vibe={int(sit.vibe)}  "
-                f"wet={sit.wet} dark={sit.dark}"
+                f"pir={int(sit.pir)}  person={sit.person}  us={sit.us_cm}cm  "
+                f"obstacle={int(sit.obstacle)}  touch={int(sit.touch)}\n"
+                f"rain={sit.rain}  light={sit.light}  humidity={sit.humidity}  "
+                f"temp={sit.temp_c}  vibe={int(sit.vibe)}  wet={sit.wet} dark={sit.dark}"
             )
         )
+        place.config(text=brain.place_label)
         try:
             while True:
                 log.insert("end", brain.events.get_nowait() + "\n")
@@ -229,7 +253,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="RUOK brain")
     parser.add_argument("--port", help="COM4 on the HP, or leave blank to auto-pick")
     parser.add_argument("--demo", action="store_true", help="No ESP32 — fake a person walking up")
+    parser.add_argument("--vision", action="store_true", help="Webcam/phone YOLO person detect")
+    parser.add_argument("--camera", type=int, default=0, help="Camera index if --vision")
+    parser.add_argument(
+        "--require-person",
+        action="store_true",
+        help="Only approach when PIR and YOLO both see a person",
+    )
     args = parser.parse_args()
+
+    eyes = None
+    if args.vision:
+        eyes = Eyes(args.camera)
+        eyes.start()
 
     link = None
     if not args.demo:
@@ -242,7 +278,7 @@ def main() -> int:
         link = SerialLink(port)
         link.open()
 
-    brain = Brain(link)
+    brain = Brain(link, eyes=eyes, require_person=args.require_person)
     threading.Thread(target=packet_loop, args=(brain, args.demo), daemon=True).start()
     print("RUOK panel open. Voice:", voice_engine())
     print("Close Serial Monitor in Arduino IDE first.")
