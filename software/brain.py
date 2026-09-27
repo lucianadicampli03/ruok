@@ -299,7 +299,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="RUOK brain")
     parser.add_argument("--port", help="COM4 on the HP, or leave blank to auto-pick")
     parser.add_argument("--demo", action="store_true", help="No ESP32 — fake a person walking up")
-    parser.add_argument("--vision", action="store_true", help="Webcam/phone YOLO person detect")
+    parser.add_argument(
+        "--vision",
+        action="store_true",
+        help="YOLO person-detect from a separate phone/webcam (not on the robot)",
+    )
     parser.add_argument(
         "--camera",
         default="0",

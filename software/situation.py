@@ -55,10 +55,9 @@ def parse_packet(
     dark = 0 < light < dark_below
     in_talk = talk_min <= us <= talk_max
     unsafe = obstacle or (0 < us < unsafe_cm)
+    # Camera is display-only unless --require-person. Sensors stay in charge.
     if require_person and person is not None:
         someone = pir and person
-    elif person is True:
-        someone = True
     else:
         someone = pir
 

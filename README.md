@@ -23,7 +23,7 @@ Repo: https://github.com/lucianadicampli03/ruok
 - Open the lunchbox lid (no servo on the pin map)
 
 **Optional extras**
-- Phone camera + Iriun/DroidCam → `--vision` (YOLO person)
+- Phone camera can sit on the robot as a **screen feed only** (`--vision`). It does not drive wheels or override JSON sensors.
 - `.env` keys for Gemini + ElevenLabs (see bottom)
 
 ## 60-second judge demo
@@ -53,7 +53,7 @@ pip install -r software\requirements-vision.txt
 python software\brain.py --vision --camera 0
 ```
 
-Iriun: Mac/HP **Iriun desktop app + phone app** both open until you see the camera (not “Looking for the phone”). Then `--camera 0` or `1`. Not an http URL.
+`--vision` puts the phone picture on the Siri page (tape it on the box or hold it). YOLO only draws a “person” badge. PIR / ultrasonic / rain still control the robot. Iriun desktop + phone app must show the live picture. `--camera 0` or `1`.
 
 ## API keys (optional)
 

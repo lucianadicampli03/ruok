@@ -47,8 +47,17 @@ def make_handler(brain):
                     "dark": sit.dark,
                     "jostled": sit.jostled,
                     "obstacle": sit.obstacle,
+                    "person": sit.person,
+                    "has_camera": bool(brain.eyes),
                 }
                 self._send(200, json.dumps(payload).encode(), "application/json")
+                return
+            if path == "/api/frame.jpg":
+                frame = brain.eyes.snapshot() if brain.eyes else b""
+                if not frame:
+                    self._send(204, b"", "image/jpeg")
+                    return
+                self._send(200, frame, "image/jpeg")
                 return
             if path not in ("/", "/index.html"):
                 self._send(404, b"not found", "text/plain")

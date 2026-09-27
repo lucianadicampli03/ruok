@@ -1,4 +1,7 @@
-"""Optional phone/webcam eyes. Person-only YOLO. Sensors still work if this dies."""
+"""Phone/webcam feed for the Siri page. Does not drive wheels.
+
+Person-only YOLO is a badge on screen. ESP32 JSON still owns the robot.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +16,8 @@ class Eyes:
         self.person = False
         self.running = False
         self.error = ""
+        self.jpeg = b""
+        self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
 
     def start(self) -> None:
@@ -22,6 +27,10 @@ class Eyes:
 
     def stop(self) -> None:
         self.running = False
+
+    def snapshot(self) -> bytes:
+        with self._lock:
+            return self.jpeg
 
     def _loop(self) -> None:
         try:
@@ -57,6 +66,10 @@ class Eyes:
                     continue
                 result = model.predict(frame, verbose=False, classes=[0], conf=0.45)[0]
                 self.person = len(result.boxes) > 0
+                ok_jpg, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+                if ok_jpg:
+                    with self._lock:
+                        self.jpeg = buf.tobytes()
                 time.sleep(0.08)
             cap.release()
         except Exception as exc:

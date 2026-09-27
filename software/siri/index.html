@@ -69,6 +69,33 @@
       letter-spacing: -0.03em;
     }
     .title em { font-style: italic; color: #e8d6ff; }
+    .view {
+      width: min(640px, 100%);
+      display: none;
+      margin: 8px 0 14px;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: #0c0a14;
+      position: relative;
+      aspect-ratio: 16 / 10;
+    }
+    .view.on { display: block; }
+    .view img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .badge {
+      position: absolute; left: 12px; bottom: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      background: rgba(8, 8, 14, 0.7);
+      border: 1px solid var(--line);
+    }
+    .badge.yes { color: #8ee4c1; }
     .stage {
       position: relative;
       width: 220px; height: 220px;
@@ -238,6 +265,10 @@
       <div class="halo"></div>
       <div id="orb" class="orb"></div>
     </div>
+    <div id="view" class="view">
+      <img id="cam" alt="Robot camera" />
+      <div id="badge" class="badge">camera</div>
+    </div>
     <div id="status" class="status">listening to the robot…</div>
     <div class="pills">
       <button type="button" data-q="what's the humidity?">humidity</button>
@@ -301,6 +332,17 @@
         setChip("vibe", s.jostled ? "yes" : "no");
         setChip("state", s.state || "idle");
         status.textContent = (s.voice || "voice") + (s.place ? " · " + s.place : " · ask from the sensors");
+        const view = document.getElementById("view");
+        const cam = document.getElementById("cam");
+        const badge = document.getElementById("badge");
+        if (s.has_camera) {
+          view.classList.add("on");
+          cam.src = "/api/frame.jpg?t=" + Date.now();
+          badge.textContent = s.person ? "person" : "no person";
+          badge.className = "badge" + (s.person ? " yes" : "");
+        } else {
+          view.classList.remove("on");
+        }
       } catch (e) {}
     }
 
