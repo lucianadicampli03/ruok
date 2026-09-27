@@ -3,11 +3,17 @@ from __future__ import annotations
 import sys
 import time
 
-import serial
-from serial.tools import list_ports as _list_ports
+try:
+    import serial
+    from serial.tools import list_ports as _list_ports
+except ImportError:
+    serial = None
+    _list_ports = None
 
 
 def list_ports() -> list[str]:
+    if _list_ports is None:
+        return []
     return [p.device for p in _list_ports.comports()]
 
 
@@ -20,6 +26,8 @@ class SerialLink:
 
     @staticmethod
     def autodetect() -> str | None:
+        if _list_ports is None:
+            return None
         ports = list(_list_ports.comports())
         prefer = []
         for p in ports:
@@ -37,6 +45,8 @@ class SerialLink:
         return None
 
     def open(self) -> None:
+        if serial is None:
+            raise RuntimeError("pip install pyserial")
         self.ser = serial.Serial(self.port, self.baud, timeout=0.05)
         time.sleep(1.5)  # ESP32 resets when the port opens
         if self.ser:

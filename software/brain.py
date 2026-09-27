@@ -5,9 +5,14 @@
   python software/brain.py --demo
   python software/brain.py --port COM4
   python software/brain.py --vision
+  python software/brain.py --demo          # Siri page + fake sensors
 """
 
 from __future__ import annotations
+
+import warnings
+
+warnings.filterwarnings("ignore", message=".*optree.*")
 
 import argparse
 import json
@@ -25,6 +30,7 @@ from serial_link import SerialLink, list_ports
 from situation import Situation, parse_packet
 from speak import speak, voice_engine
 from vision import Eyes
+from webapp import serve as serve_siri
 
 TALK_MIN_CM = 40
 TALK_MAX_CM = 160
@@ -56,27 +62,28 @@ class Brain:
         if self.link:
             self.link.send(cmd)
 
-    def apply(self, out: AgentOut | None) -> None:
+    def apply(self, out: AgentOut | None, speak_out: bool = True) -> None:
         if not out:
             return
         if out.cmd:
             self.send(out.cmd)
         if out.line:
-            speak(out.line)
+            if speak_out:
+                speak(out.line)
             who = out.agent or "brain"
             self.events.put(f"{who}: {out.line}")
 
-    def choose_need(self, need: str) -> None:
+    def choose_need(self, need: str, speak_out: bool = True) -> None:
         self.need = need
         sit = self.last_sit
         veto = watch(sit)
         if veto:
-            self.apply(veto)
+            self.apply(veto, speak_out=speak_out)
             self.send("beep")
             self.state = "talking"
             return
         out = greeter(sit, need)
-        self.apply(out)
+        self.apply(out, speak_out=speak_out)
         place = pick("shelter" if need in ("walk", "wet") else need)
         if place:
             self.place_label = f"{place['name']} — {place['address']}"
@@ -219,6 +226,45 @@ def build_ui(brain: Brain) -> tk.Tk:
     return root
 
 
+def run_console(brain: Brain) -> None:
+    print("Console mode (this Mac's Tk crashes). Type food / meds / shelter / walk / quit")
+    print("Voice:", voice_engine())
+    last_state = ""
+    while True:
+        try:
+            while True:
+                print(brain.events.get_nowait())
+        except queue.Empty:
+            pass
+        if brain.state != last_state:
+            sit = brain.last_sit
+            print(
+                f"[{brain.state}] pir={int(sit.pir)} us={sit.us_cm} "
+                f"need={brain.need or '—'} {brain.place_label}"
+            )
+            last_state = brain.state
+        # Non-blocking-ish input: only check stdin every loop if the user typed
+        if sys.stdin in select_stdin():
+            line = sys.stdin.readline().strip().lower()
+            if line in ("q", "quit", "exit"):
+                return
+            if line in ("food", "meds", "shelter", "walk"):
+                brain.choose_need(line)
+                url = maps_url("shelter" if line == "walk" else line)
+                if url:
+                    print("maps:", url)
+        time.sleep(0.15)
+
+
+def select_stdin():
+    import select
+
+    if sys.platform.startswith("win"):
+        return [sys.stdin] if False else []
+    ready, _, _ = select.select([sys.stdin], [], [], 0)
+    return ready
+
+
 def packet_loop(brain: Brain, demo: bool) -> None:
     t = 0.0
     while True:
@@ -254,17 +300,26 @@ def main() -> int:
     parser.add_argument("--port", help="COM4 on the HP, or leave blank to auto-pick")
     parser.add_argument("--demo", action="store_true", help="No ESP32 — fake a person walking up")
     parser.add_argument("--vision", action="store_true", help="Webcam/phone YOLO person detect")
-    parser.add_argument("--camera", type=int, default=0, help="Camera index if --vision")
+    parser.add_argument(
+        "--camera",
+        default="0",
+        help="0 for a USB webcam, or a phone URL like http://192.168.0.12:4747/video",
+    )
     parser.add_argument(
         "--require-person",
         action="store_true",
         help="Only approach when PIR and YOLO both see a person",
     )
+    parser.add_argument("--ui", action="store_true", help="Old button window")
+    parser.add_argument("--no-ui", action="store_true", help="Terminal only")
+    parser.add_argument("--web", action="store_true", help="Siri page (default)")
+    parser.add_argument("--http-port", type=int, default=8765)
     args = parser.parse_args()
 
     eyes = None
     if args.vision:
-        eyes = Eyes(args.camera)
+        cam = int(args.camera) if str(args.camera).isdigit() else args.camera
+        eyes = Eyes(cam)
         eyes.start()
 
     link = None
@@ -280,9 +335,26 @@ def main() -> int:
 
     brain = Brain(link, eyes=eyes, require_person=args.require_person)
     threading.Thread(target=packet_loop, args=(brain, args.demo), daemon=True).start()
-    print("RUOK panel open. Voice:", voice_engine())
-    print("Close Serial Monitor in Arduino IDE first.")
-    build_ui(brain).mainloop()
+    print("Voice:", voice_engine())
+    if args.no_ui:
+        run_console(brain)
+    elif args.ui:
+        print("Button window. Close Serial Monitor first.")
+        build_ui(brain).mainloop()
+    else:
+        httpd = serve_siri(brain, port=args.http_port)
+        url = f"http://127.0.0.1:{httpd.server_port}"
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        print("Siri page:", url)
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+        try:
+            while True:
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            httpd.shutdown()
     if link:
         link.close()
     return 0

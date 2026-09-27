@@ -1,56 +1,70 @@
 # RUOK
 
-A lunchbox robot that rolls up, asks **are you okay?**, and helps with food, medicine, or shelter.
+Lunchbox robot that rolls up, asks **are you okay?**, and helps with food, medicine, or shelter.
 
-Run everything on the **HP** (USB-A). This Mac has no adaptor.
+**Software is done.** The ESP32 JSON is only the sensor feed. Everything else below is what makes a demo.
+
+Repo: https://github.com/lucianadicampli03/ruok
+
+## Besides the JSON — you still need
+
+**Always (demo dies without these)**
+- HP plugged into the ESP32 (this Mac has no USB adaptor)
+- Firmware uploaded (`firmware/ruok_esp32/ruok_esp32.ino`)
+- Serial Monitor **closed**, then `python software\brain.py`
+- Laptop/USB **speakers** unmuted (the ESP32 buzzer only beeps)
+- Chrome or Edge open to **http://127.0.0.1:8765**
+
+**Hardware the sketch already drives**
+- Wheels (ULN2003) — PIR → `approach`, too close → `stop`
+- PIR, ultrasonic, obstacle, touch, vibe, rain, DHT11, light, LED, buzzer
+
+**Do by hand**
+- Open the lunchbox lid (no servo on the pin map)
+
+**Optional extras**
+- Phone camera + Iriun/DroidCam → `--vision` (YOLO person)
+- `.env` keys for Gemini + ElevenLabs (see bottom)
+
+## 60-second judge demo
+
+1. Wave in front of the PIR → it rolls.
+2. Stand ~1 m away → it stops and says *are you okay?*
+3. Ask on the Siri page: “what’s the humidity?” / “how’s the weather?” → it **talks** and the chips light up from live JSON.
+4. Say or tap **food** / **shelter** / **walk** → spoken help + Google Maps.
+5. Cover the obstacle or shake the box → stop + “I’ve got you.”
+6. If raining/wet → it will not offer to open the box.
+
+Agents: **Watch** (safety), **Pilot** (wheels), **Greeter** (voice + place).
 
 ## On the HP
 
-1. Install [Python 3](https://www.python.org/downloads/) and [Arduino IDE 2](https://www.arduino.cc/en/software).
-2. Boards Manager → **esp32 by Espressif**. Library Manager → **DHT sensor library** (Adafruit) + **Adafruit Unified Sensor**.
-3. `git clone` / `git pull` this repo. Plug in the ESP32. Board = **ESP32 Dev Module**.
-4. Upload `firmware/ruok_esp32/ruok_esp32.ino`.
-5. Serial Monitor **115200** — wave at PIR, see JSON, then **close** it.
-6. PowerShell:
-
 ```bat
 cd ruok
+git pull
 pip install -r software\requirements.txt
 python software\brain.py
 ```
 
-`--port COM4` if it misses the board. `--demo` to hear voice with no robot.
-
-Optional eyes (phone/webcam taped on the front, DroidCam counts as a camera):
+`--port COM4` if needed. `--demo` = Siri page with fake JSON (no robot).
 
 ```bat
 pip install -r software\requirements-vision.txt
-python software\brain.py --vision
-python software\brain.py --vision --require-person
+python software\brain.py --vision --camera 0
 ```
 
-## Demo beat
+Iriun: Mac/HP **Iriun desktop app + phone app** both open until you see the camera (not “Looking for the phone”). Then `--camera 0` or `1`. Not an http URL.
 
-PIR (and optional YOLO person) → wheels approach → ultrasonic talk-range → stop → “Are you okay?” → Food / Medicine / Shelter / Walk. Walk opens Google Maps walking directions to a Miami help site. Rain keeps the box closed and pushes shelter.
+## API keys (optional)
 
-Agents: **Watch** (safety veto), **Pilot** (wheels), **Greeter** (spoken line + resource).
+Zero keys still talks (Windows/`say`). Copy `.env.example` to `.env` next to this file:
 
-## Pins
+- `GEMINI_API_KEY` — [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — new sentences
+- `ELEVENLABS_API_KEY` — [elevenlabs.io](https://elevenlabs.io/app/settings/api-keys) or MLH — human voice
+- `ELEVENLABS_VOICE_ID` — optional
 
-See the top of `firmware/ruok_esp32/ruok_esp32.ino`. No lid servo on the map — open the lunchbox by hand.
+No Maps key. Do not commit `.env`.
 
-## API keys (only if you want the prize path)
+## Devpost challenges this fits
 
-The robot **runs with zero keys**. Windows speaks. Places come from `software/resources.json`.
-
-Copy `.env.example` to `.env` next to this README and paste:
-
-| Key | Where to get it | What it does |
-| --- | --- | --- |
-| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/apikey) | Greeter writes a new sentence from wet/dark/need |
-| `ELEVENLABS_API_KEY` | [ElevenLabs](https://elevenlabs.io/app/settings/api-keys) or MLH table | Human voice on the speakers |
-| `ELEVENLABS_VOICE_ID` | optional | Defaults to Rachel (`21m00Tcm4TlvDq8ikWAM`) |
-
-No Google Maps key. Directions use a public maps link.
-
-Do not commit `.env`.
+Waymo (guide), ElevenLabs, Gemini, Microsoft (not a chat-only app — the box moves), Assurant if you say the session is not saved.

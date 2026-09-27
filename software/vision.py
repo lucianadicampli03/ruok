@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import sys
 import threading
 import time
 
 
 class Eyes:
-    def __init__(self, camera: int = 0):
+    def __init__(self, camera: int | str = 0):
         self.camera = camera
         self.person = False
         self.running = False
@@ -32,10 +33,21 @@ class Eyes:
             return
         try:
             model = YOLO("yolov8n.pt")
-            cap = cv2.VideoCapture(self.camera)
+            source = self.camera
+            if isinstance(source, int) and sys.platform == "darwin":
+                cap = cv2.VideoCapture(source, cv2.CAP_AVFOUNDATION)
+            else:
+                cap = cv2.VideoCapture(source)
             if not cap.isOpened():
                 self.error = f"camera {self.camera} would not open"
                 print("Vision off:", self.error)
+                if sys.platform == "darwin":
+                    print(
+                        "Mac camera permission: System Settings → Privacy & Security → Camera\n"
+                        "  turn ON Terminal (and Cursor if you run from here).\n"
+                        "Iriun: open the Mac Iriun app AND the phone app, then use --camera 0 or 1\n"
+                        "  (not an http URL — Iriun is a webcam, not a website)."
+                    )
                 return
             print("Vision on — person class only")
             while self.running:
