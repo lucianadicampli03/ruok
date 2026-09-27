@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from ask import answer
-from speak import speak, voice_engine
+from speak import speak, speak_then, voice_engine
 
 SIRI_DIR = Path(__file__).resolve().parent / "siri"
 
@@ -31,13 +31,23 @@ def make_handler(brain):
             path = urlparse(self.path).path
             if path == "/api/state":
                 sit = brain.last_sit
+                us = sit.us_cm
+                if sit.touch or sit.tapped:
+                    hw = "help"
+                elif 0 <= us <= 25:
+                    hw = "stopped"
+                elif us <= 120:
+                    hw = "approaching"
+                else:
+                    hw = "waiting"
                 payload = {
-                    "state": brain.state,
+                    "state": hw,
                     "need": brain.need,
                     "place": brain.place_label,
                     "voice": voice_engine(),
                     "pir": sit.pir,
                     "someone": sit.someone,
+                    "touch": sit.touch,
                     "us_cm": sit.us_cm,
                     "humidity": sit.humidity,
                     "temp_c": sit.temp_c,
@@ -72,11 +82,19 @@ def make_handler(brain):
             n = int(self.headers.get("Content-Length", "0"))
             raw = json.loads(self.rfile.read(n) or b"{}")
             text = str(raw.get("text") or "")
-            out = answer(text, brain.last_sit)
-            if out.get("need"):
-                brain.choose_need(out["need"], speak_out=not raw.get("client_tts"))
-            elif not raw.get("client_tts"):
-                speak(out["reply"])
+            out = answer(text, brain.last_sit, getattr(brain, "chat_log", []))
+            if text:
+                brain.chat_log.append({"role": "user", "text": text})
+                brain.chat_log.append({"role": "model", "text": out["reply"]})
+            if out.get("need") in ("food", "meds", "shelter", "walk"):
+                brain.choose_need(out["need"], speak_out=False, talk=False)
+            elif out.get("need") in ("weapon", "hazard"):
+                brain.send("stop")
+            if not raw.get("client_tts"):
+                if out.get("followup"):
+                    speak_then(out["reply"], 5, out["followup"])
+                elif not out.get("need"):
+                    speak(out["reply"])
             brain.events.put("siri: " + out["reply"])
             self._send(200, json.dumps(out).encode(), "application/json")
 

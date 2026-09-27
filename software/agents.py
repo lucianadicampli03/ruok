@@ -6,23 +6,27 @@ Pilot only emits wheel commands. No chat window.
 
 from __future__ import annotations
 
-import json
-import os
-import urllib.error
-import urllib.request
 from dataclasses import dataclass
 
 from envload import load_env
-from resources import as_prompt, spoken
+import gemini
+from resources import FOOD_SNACK
 from situation import Situation
 
 load_env()
 
+HELLO = "Hello, I am RUOK. Can I help you?"
+
 LINES = {
-    "ruok": "Hey. Are you okay? Food, medicine, or a place to stay?",
-    "food": "I can share what's in the box, or walk you toward food.",
+    "ruok": HELLO,
+    "food": FOOD_SNACK,
     "meds": "I can offer what's in the box, or help you find a clinic.",
     "shelter": "I can walk with you toward somewhere dry and safe.",
+    "weather": "I can tell you what I feel outside, and help you get out of the heat or rain.",
+    "hazard": "Thank you. If anyone is in danger call 911. For a street problem, call 311.",
+    "weapon": "Get somewhere safe and call 911. Do not go toward them. I will stay with you.",
+    "event": "I can point you to a meal, a giveaway, or today's help nearby.",
+    "support": "I hear you. You are not alone. I can stay with you, or you can call 988.",
     "walk": "Okay. Stay near me and I will go slowly.",
     "wet": "It's wet. I will keep the box closed. I can take you somewhere dry.",
     "dark": "It's dark. I can walk you somewhere with more light.",
@@ -45,27 +49,35 @@ def watch(sit: Situation) -> AgentOut | None:
 
 
 def greeter(sit: Situation, need: str | None) -> AgentOut:
-    if sit.wet and need in ("food", "meds", None):
-        line = _line(sit, "wet") + " " + spoken("shelter")
-        return AgentOut(line=line.strip(), cmd="stop", agent="greeter")
-    if need == "walk":
-        place_need = "shelter" if sit.wet or sit.dark else "food"
-        line = _line(sit, "walk") + " " + spoken(place_need)
-        if sit.dark:
-            line = line + " " + LINES["dark"]
-        return AgentOut(line=line.strip(), cmd="follow", agent="greeter")
-    if need in ("food", "meds", "shelter"):
-        line = _line(sit, need) + " " + spoken(need)
-        if sit.dark:
-            line = line + " " + LINES["dark"]
-        return AgentOut(line=line.strip(), cmd="stop", agent="greeter")
-    if need in LINES:
-        return AgentOut(line=_line(sit, need), cmd="stop", agent="greeter")
-    return AgentOut(line=_line(sit, "ruok"), cmd="stop", agent="greeter")
+    if need in (None, "ruok"):
+        return AgentOut(line=HELLO, cmd="stop", agent="greeter")
+    if need == "food":
+        return AgentOut(line=FOOD_SNACK, cmd="stop", agent="greeter")
+    cmd = "follow" if need == "walk" else "stop"
+    return AgentOut(line=_line(sit, need), cmd=cmd, agent="greeter")
 
 
 def _line(sit: Situation, need: str) -> str:
-    return _maybe_gemini(sit, need)
+    asked = {
+        "food": "I don't have enough food.",
+        "meds": "I need medicine.",
+        "shelter": "I need a safe place to stay.",
+        "weather": "How's the weather, and where can I get out of it?",
+        "hazard": "I need to report a hazard.",
+        "weapon": "I saw someone with a weapon.",
+        "event": "What's going on nearby that could help me?",
+        "support": "I'm not okay. Can you stay with me?",
+        "walk": "Walk with me.",
+        "wet": "It's wet. I need somewhere dry.",
+        "dark": "It's dark. Can you help?",
+        "bye": "Thanks, I am okay now.",
+        "stop": "Stop.",
+    }.get(need or "", "Can you help me?")
+    try:
+        return gemini.chat(asked, sit)["reply"]
+    except Exception as exc:
+        print("Gemini failed, canned line:", exc)
+        return LINES.get(need or "", HELLO)
 
 
 def pilot(sit: Situation, state: str) -> AgentOut | None:
@@ -84,38 +96,3 @@ def pilot(sit: Situation, state: str) -> AgentOut | None:
     return None
 
 
-def _maybe_gemini(sit: Situation, need: str) -> str:
-    fallback = LINES.get(need, LINES["ruok"])
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key:
-        return fallback
-    prompt = (
-        "You are RUOK, a small help robot. Say ONE short spoken sentence (max 20 words). "
-        "No lists, no emoji, no name-asking. Need=%s. Wet=%s Dark=%s Person=%s. %s"
-        % (need, sit.wet, sit.dark, sit.person, as_prompt(need if need in ("food", "meds", "shelter", "wet", "walk") else "food"))
-    )
-    try:
-        return _gemini(key, prompt) or fallback
-    except Exception as exc:
-        print("Gemini failed, canned line:", exc)
-        return fallback
-
-
-def _gemini(key: str, prompt: str) -> str:
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
-    url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        + model
-        + ":generateContent?key="
-        + key
-    )
-    payload = json.dumps(
-        {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": 60}}
-    ).encode("utf-8")
-    req = urllib.request.Request(
-        url, data=payload, method="POST", headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(req, timeout=12) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-    return text.split("\n")[0].strip().strip('"')

@@ -44,5 +44,65 @@
       "address": "Women and children — call 305-438-0866",
       "note": "Safe housing"
     }
+  ],
+  "weather": [
+    {
+      "name": "Camillus House (indoor, dry, AC)",
+      "address": "1603 NW 7th Ave, Miami, FL 33136",
+      "note": "Get out of rain or heat"
+    },
+    {
+      "name": "City of Miami 311",
+      "address": "Call 311 for cooling centers and weather alerts",
+      "note": "Heat, flood, storm info"
+    }
+  ],
+  "hazard": [
+    {
+      "name": "Emergency",
+      "address": "Call 911 if anyone is in danger right now",
+      "note": "Police, fire, medical"
+    },
+    {
+      "name": "City of Miami 311",
+      "address": "Call 311 to report flooding, downed wires, or an unsafe street",
+      "note": "Non-emergency city hazard"
+    }
+  ],
+  "weapon": [
+    {
+      "name": "Emergency",
+      "address": "Get somewhere safe and call 911. Do not approach.",
+      "note": "Weapon sighting"
+    }
+  ],
+  "event": [
+    {
+      "name": "Farm Share Miami",
+      "address": "Check farmshare.org for today's free produce giveaway",
+      "note": "Food event"
+    },
+    {
+      "name": "Camillus House dining hall",
+      "address": "1603 NW 7th Ave, Miami, FL 33136",
+      "note": "Meals and services"
+    },
+    {
+      "name": "United Way 211",
+      "address": "Call 211 for today's meals, cooling sites, and community events",
+      "note": "What's open now"
+    }
+  ],
+  "support": [
+    {
+      "name": "988 Suicide and Crisis Lifeline",
+      "address": "Call or text 988",
+      "note": "24/7 emotional crisis support"
+    },
+    {
+      "name": "United Way 211",
+      "address": "Call 211",
+      "note": "Local help and someone to talk to"
+    }
   ]
 }

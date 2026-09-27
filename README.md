@@ -1,43 +1,21 @@
 # RUOK
 
-Lunchbox robot that rolls up, asks **are you okay?**, and helps with food, medicine, or shelter.
-
-**Software is done.** The ESP32 JSON is only the sensor feed. Everything else below is what makes a demo.
+A robot that comes to you and asks **are you okay?**  
+It helps with **food**, **shelter**, and **emotional support**. Also weather, hazards, and 911 if someone saw a weapon.
 
 Repo: https://github.com/lucianadicampli03/ruok
 
-## Besides the JSON — you still need
+## Two demos
 
-**Always (demo dies without these)**
-- HP plugged into the ESP32 (this Mac has no USB adaptor)
-- Firmware uploaded (`firmware/ruok_esp32/ruok_esp32.ino`)
-- Serial Monitor **closed**, then `python software\brain.py`
-- Laptop/USB **speakers** unmuted (the ESP32 buzzer only beeps)
-- Chrome or Edge open to **http://127.0.0.1:8765**
+**Mac (no USB adaptor)** — fake sensors, website talks:
 
-**Hardware the sketch already drives**
-- Wheels (ULN2003) — PIR → `approach`, too close → `stop`
-- PIR, ultrasonic, obstacle, touch, vibe, rain, DHT11, light, LED, buzzer
+```bash
+python3 software/brain.py --demo
+```
 
-**Do by hand**
-- Open the lunchbox lid (no servo on the pin map)
+Open **http://127.0.0.1:8765**
 
-**Optional extras**
-- Phone camera can sit on the robot as a **screen feed only** (`--vision`). It does not drive wheels or override JSON sensors.
-- `.env` keys for Gemini + ElevenLabs (see bottom)
-
-## 60-second judge demo
-
-1. Wave in front of the PIR → it rolls.
-2. Stand ~1 m away → it stops and says *are you okay?*
-3. Ask on the Siri page: “what’s the humidity?” / “how’s the weather?” → it **talks** and the chips light up from live JSON.
-4. Say or tap **food** / **shelter** / **walk** → spoken help + Google Maps.
-5. Cover the obstacle or shake the box → stop + “I’ve got you.”
-6. If raining/wet → it will not offer to open the box.
-
-Agents: **Watch** (safety), **Pilot** (wheels), **Greeter** (voice + place).
-
-## On the HP
+**HP (ESP32 plugged in)** — live board. Close Serial Monitor first.
 
 ```bat
 cd ruok
@@ -46,25 +24,84 @@ pip install -r software\requirements.txt
 python software\brain.py
 ```
 
-`--port COM4` if needed. `--demo` = Siri page with fake JSON (no robot).
+`--port COM4` if it does not find the board.
+
+`--demo` = no robot. Do not use `--demo` on the HP if the board is plugged in.
+
+## What the box does (hardware)
+
+Jay / Luciana’s demo sketch:
+
+| Distance / input | What happens |
+| --- | --- |
+| over 120 cm | **WAIT** (red) |
+| 25–120 cm | **APPROACH** (green, wheels) |
+| 25 cm or closer | **STOP** (red) |
+| **TOUCH** | **HELP** — stop and stay stopped (green) |
+
+Startup lights: red once, green twice.
+
+The laptop page shows the same states: waiting → approaching → stopped → help.
+
+## What the website does (software)
+
+It says **Hello, I am RUOK. Can I help you?** then waits.
+
+- **Food** — snack in the compartment on top. Open the lid by hand. After ~5 seconds it offers nearby meals.
+- **Shelter** — a safe place, or walk with you.
+- **Support** — stays with you. Crisis → 988.
+- **Hazard / weapon** — get safe, call 911. It does not drive toward danger.
+
+Pills: food, shelter, support, hazard.
+
+Gemini writes most answers from the latest sensors. Food / 911 / 988 stay written by us.
+
+Voice: ElevenLabs Brian if the key works, else the browser / Windows / Mac voice.
+
+## Software on the laptop
+
+| Piece | Job |
+| --- | --- |
+| `firmware/ruok_esp32/ruok_esp32.ino` | Older JSON + full sensor hub (PIR, rain, DHT, vibe, …) |
+| Hardware team sketch | Distance + touch + LEDs (the table above). Prints text, not JSON. |
+| `software/brain.py` | Reads serial JSON or `--demo` fake packets |
+| `software/agents.py` | Watch (safety), Pilot (wheels), Greeter (talk) |
+| `software/gemini.py` | Gemini replies |
+| `software/siri/index.html` | Face of the demo |
+| `software/resources.json` | Miami food / shelter / 988 / 311 |
+
+Agents: **Watch** can stop the wheels. **Pilot** only moves. **Greeter** talks.
+
+## Optional
 
 ```bat
 pip install -r software\requirements-vision.txt
 python software\brain.py --vision --camera 0
 ```
 
-`--vision` puts the phone picture on the Siri page (tape it on the box or hold it). YOLO only draws a “person” badge. PIR / ultrasonic / rain still control the robot. Iriun desktop + phone app must show the live picture. `--camera 0` or `1`.
+Phone camera on the page only. YOLO draws a “person” badge. It does **not** drive the wheels.
 
-## API keys (optional)
+## API keys
 
-Zero keys still talks (Windows/`say`). Copy `.env.example` to `.env` next to this file:
+Copy `.env.example` to `.env` next to this file. Do not commit `.env`.
 
-- `GEMINI_API_KEY` — [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — new sentences
-- `ELEVENLABS_API_KEY` — [elevenlabs.io](https://elevenlabs.io/app/settings/api-keys) or MLH — human voice
-- `ELEVENLABS_VOICE_ID` — optional
+- `GEMINI_API_KEY` — [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+- `GEMINI_MODEL=gemini-flash-lite-latest`
+- `ELEVENLABS_API_KEY` — [elevenlabs.io](https://elevenlabs.io/app/settings/api-keys)
+- `ELEVENLABS_VOICE_ID` — Brian `nPczCjzI2devNBz1zQrb`
 
-No Maps key. Do not commit `.env`.
+No Maps key. No chat saved.
 
-## Devpost challenges this fits
+## Devpost (what to tick)
 
-Waymo (guide), ElevenLabs, Gemini, Microsoft (not a chat-only app — the box moves), Assurant if you say the session is not saved.
+**Yes:** Best Overall (automatic), Waymo, Microsoft (demo the robot, not only chat), MLH Gemini, MLH ElevenLabs.  
+**First-time hacker** only if half the team has never submitted.  
+**Skip:** Sperry, Blackstone, State Farm, INIT, Solana, databases, GoDaddy unless you used them.
+
+## Judge script (no hardware)
+
+1. Over 120 cm it waits. 25–120 it approaches. At 25 it stops. Touch = help, stay stopped.
+2. *Hello, I am RUOK. Can I help you?*
+3. Tap **food** → snack in the lid → wait → nearby places.
+4. Tap **shelter**, then **support**.
+5. Mac has no USB. Motors/lights are on the HP.

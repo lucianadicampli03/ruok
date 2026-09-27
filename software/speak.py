@@ -16,7 +16,7 @@ from envload import load_env
 
 load_env()
 
-DEFAULT_VOICE = "21m00Tcm4TlvDq8ikWAM"  # ElevenLabs Rachel — swap in .env
+DEFAULT_VOICE = "nPczCjzI2devNBz1zQrb"  # ElevenLabs Brian
 
 
 def voice_engine() -> str:
@@ -33,6 +33,15 @@ def speak(text: str) -> None:
     threading.Thread(target=_speak_sync, args=(text,), daemon=True).start()
 
 
+def speak_then(first: str, wait_s: float, second: str) -> None:
+    def run() -> None:
+        _speak_sync(first)
+        time.sleep(wait_s)
+        _speak_sync(second)
+
+    threading.Thread(target=run, daemon=True).start()
+
+
 def _speak_sync(text: str) -> None:
     print("RUOK:", text)
     if os.environ.get("ELEVENLABS_API_KEY"):
@@ -47,9 +56,12 @@ def _speak_sync(text: str) -> None:
 def _local_voice(text: str) -> None:
     if sys.platform.startswith("win"):
         safe = text.replace("'", "''")
+        name = os.environ.get("WINDOWS_VOICE", "Microsoft David Desktop")
         cmd = (
             "Add-Type -AssemblyName System.Speech; "
-            f"(New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('{safe}')"
+            "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+            f"try {{ $s.SelectVoice('{name}') }} catch {{}}; "
+            f"$s.Speak('{safe}')"
         )
         subprocess.run(
             ["powershell", "-NoProfile", "-Command", cmd],
@@ -59,7 +71,8 @@ def _local_voice(text: str) -> None:
         )
         return
     if shutil.which("say"):
-        subprocess.run(["say", text], check=False)
+        voice = os.environ.get("SAY_VOICE", "Daniel")
+        subprocess.run(["say", "-v", voice, text], check=False)
 
 
 def _elevenlabs(text: str) -> None:

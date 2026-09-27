@@ -32,9 +32,9 @@ from speak import speak, voice_engine
 from vision import Eyes
 from webapp import serve as serve_siri
 
-TALK_MIN_CM = 40
-TALK_MAX_CM = 160
-UNSAFE_CM = 30
+TALK_MIN_CM = 1
+TALK_MAX_CM = 120
+UNSAFE_CM = 10
 # ESP32 analog is 0-4095. Wet rain boards usually drop when water hits the pad.
 # Flip RAIN_WET_ABOVE if your module goes up when wet.
 RAIN_WET_BELOW = 1500
@@ -57,6 +57,8 @@ class Brain:
         self.last_stop_line = 0.0
         self.events: queue.Queue[str] = queue.Queue()
         self.place_label = ""
+        self.web = False
+        self.chat_log: list[dict] = []
 
     def send(self, cmd: str) -> None:
         if self.link:
@@ -73,7 +75,7 @@ class Brain:
             who = out.agent or "brain"
             self.events.put(f"{who}: {out.line}")
 
-    def choose_need(self, need: str, speak_out: bool = True) -> None:
+    def choose_need(self, need: str, speak_out: bool = True, talk: bool = True) -> None:
         self.need = need
         sit = self.last_sit
         veto = watch(sit)
@@ -82,9 +84,15 @@ class Brain:
             self.send("beep")
             self.state = "talking"
             return
-        out = greeter(sit, need)
-        self.apply(out, speak_out=speak_out)
-        place = pick("shelter" if need in ("walk", "wet") else need)
+        if talk:
+            self.apply(greeter(sit, need), speak_out=speak_out)
+        elif need == "walk" and not sit.wet:
+            self.send("follow")
+        else:
+            self.send("stop")
+        if need in ("weapon", "hazard"):
+            self.send("stop")
+        place = pick(need)
         if place:
             self.place_label = f"{place['name']} — {place['address']}"
             self.events.put("place: " + self.place_label)
@@ -129,14 +137,14 @@ class Brain:
                 self.apply(move or AgentOut(cmd="stop", agent="pilot"))
                 self.state = "talking"
                 if now - self.last_greet > 8:
-                    self.apply(greeter(sit, None))
+                    self.apply(greeter(sit, None), speak_out=not self.web)
                     self.last_greet = now
             elif not sit.someone:
                 self.apply(move or AgentOut(cmd="stop", agent="pilot"))
                 self.state = "idle"
         elif self.state == "talking":
             if sit.tapped and now - self.last_greet > 2:
-                self.choose_need("food")
+                self.last_greet = now
             if not sit.someone and not sit.in_talk_range:
                 self.state = "idle"
                 self.apply(greeter(sit, "bye"))
@@ -270,11 +278,19 @@ def packet_loop(brain: Brain, demo: bool) -> None:
     while True:
         if demo:
             t += 0.2
+            if t < 3:
+                us, pir, touch = 180, 0, 0
+            elif t < 8:
+                us, pir, touch = 80, 1, 0
+            elif t < 12:
+                us, pir, touch = 22, 1, 0
+            else:
+                us, pir, touch = 22, 1, 1
             fake = {
-                "pir": 1 if t > 1 else 0,
-                "us_cm": 200 if t < 3 else 90,
+                "pir": pir,
+                "us_cm": us,
                 "obstacle": 0,
-                "touch": 0,
+                "touch": touch,
                 "light": 2000,
                 "rain": 2500,
                 "humidity": 48,
@@ -346,6 +362,7 @@ def main() -> int:
         print("Button window. Close Serial Monitor first.")
         build_ui(brain).mainloop()
     else:
+        brain.web = True
         httpd = serve_siri(brain, port=args.http_port)
         url = f"http://127.0.0.1:{httpd.server_port}"
         threading.Thread(target=httpd.serve_forever, daemon=True).start()

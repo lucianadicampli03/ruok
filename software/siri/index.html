@@ -4,296 +4,286 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>RUOK</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    :root {
-      --ink: #f6f3ec;
-      --mute: #b7b3c8;
-      --glass: rgba(18, 16, 32, 0.55);
-      --line: rgba(255, 255, 255, 0.1);
-    }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       min-height: 100%;
-      color: var(--ink);
-      font-family: Outfit, system-ui, sans-serif;
-      background: #07060d;
-    }
-    body {
-      background:
-        radial-gradient(900px 500px at 50% -10%, #3d2a78 0%, transparent 55%),
-        radial-gradient(700px 420px at 100% 80%, #123b4a 0%, transparent 50%),
-        radial-gradient(600px 380px at 0% 90%, #4a1d3a 0%, transparent 48%),
-        #07060d;
-    }
-    .grain {
-      pointer-events: none;
-      position: fixed;
-      inset: 0;
-      opacity: 0.07;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background: #f6f4ef;
+      color: #111;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
     .wrap {
-      position: relative;
-      z-index: 1;
-      max-width: 880px;
-      margin: 0 auto;
       min-height: 100vh;
-      padding: 28px 20px 36px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      padding: 12px 16px 28px;
     }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      letter-spacing: 0.28em;
-      font-size: 12px;
-      font-weight: 600;
-      color: #d8d2ea;
-    }
-    .dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #8ee4c1;
-      box-shadow: 0 0 12px #8ee4c1;
-    }
-    .title {
-      margin: 10px 0 0;
-      font-family: "Instrument Serif", Georgia, serif;
-      font-size: clamp(36px, 6vw, 58px);
-      font-weight: 400;
-      letter-spacing: -0.03em;
-    }
-    .title em { font-style: italic; color: #e8d6ff; }
-    .view {
-      width: min(640px, 100%);
-      display: none;
-      margin: 8px 0 14px;
-      border-radius: 22px;
-      overflow: hidden;
-      border: 1px solid var(--line);
-      background: #0c0a14;
-      position: relative;
-      aspect-ratio: 16 / 10;
-    }
-    .view.on { display: block; }
-    .view img {
-      width: 100%; height: 100%;
-      object-fit: cover;
+    #field {
+      width: min(720px, 100%);
+      height: min(28vh, 200px);
+      cursor: crosshair;
       display: block;
     }
-    .badge {
-      position: absolute; left: 12px; bottom: 12px;
-      padding: 6px 10px;
-      border-radius: 999px;
+    #orb { display: none; }
+    .status {
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #666;
+      min-height: 1.2em;
+      margin: 4px 0 10px;
+    }
+    .voices {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 12px;
       font-size: 12px;
       letter-spacing: 0.08em;
-      background: rgba(8, 8, 14, 0.7);
-      border: 1px solid var(--line);
     }
-    .badge.yes { color: #8ee4c1; }
-    .stage {
-      position: relative;
-      width: 220px; height: 220px;
-      margin: 18px 0 8px;
-    }
-    .halo, .orb {
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-    }
-    .halo {
-      background: conic-gradient(from 200deg, #7aa7ff, #e2a6ff, #7ee8c8, #7aa7ff);
-      filter: blur(18px);
-      opacity: 0.55;
-      animation: spin 10s linear infinite;
-    }
-    .orb {
-      inset: 22px;
-      background:
-        radial-gradient(circle at 32% 28%, #ffffffcc, transparent 36%),
-        conic-gradient(from 140deg, #6b9dff, #d9a4ff, #6fe3c4, #6b9dff);
-      box-shadow: inset 0 0 40px rgba(255,255,255,0.25), 0 20px 50px rgba(80, 60, 160, 0.35);
-      animation: idle 5s ease-in-out infinite;
-    }
-    .orb.listen { animation: listen 1.2s ease-in-out infinite; }
-    .orb.talk { animation: talk 0.9s ease-in-out infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes idle { 50% { transform: scale(1.03); } }
-    @keyframes listen { 50% { transform: scale(1.08); filter: saturate(1.25); } }
-    @keyframes talk { 50% { transform: scale(1.12); } }
-    .status {
-      color: var(--mute);
-      font-size: 14px;
-      min-height: 1.3em;
-      margin-bottom: 14px;
+    .voices select {
+      border: 1px solid #111;
+      background: #f6f4ef;
+      font: inherit;
+      padding: 6px 8px;
+      max-width: min(360px, 70vw);
     }
     .pills {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 10px;
       justify-content: center;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
     .pills button {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.04);
-      color: var(--ink);
+      border: 1px solid #111;
+      background: #f6f4ef;
+      color: #111;
       border-radius: 999px;
-      padding: 8px 14px;
+      padding: 8px 16px;
       font: inherit;
       font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: lowercase;
       cursor: pointer;
+      animation: buzz 1.8s ease-in-out infinite;
     }
-    .pills button:hover { background: rgba(255,255,255,0.1); }
+    .pills button:nth-child(2) { animation-delay: 0.2s; }
+    .pills button:nth-child(3) { animation-delay: 0.4s; }
+    .pills button:nth-child(4) { animation-delay: 0.6s; }
+    .pills button:nth-child(5) { animation-delay: 0.8s; }
+    .pills button:nth-child(6) { animation-delay: 1s; }
+    .pills button:hover {
+      animation: shake 0.18s linear infinite;
+      background: #111;
+      color: #f6f4ef;
+    }
+    @keyframes buzz {
+      0%, 100% { transform: translate(0, 0) rotate(0); }
+      25% { transform: translate(0.4px, -0.6px) rotate(-0.4deg); }
+      50% { transform: translate(-0.5px, 0.4px) rotate(0.5deg); }
+      75% { transform: translate(0.3px, 0.5px) rotate(-0.2deg); }
+    }
+    @keyframes shake {
+      0% { transform: translate(0, 0); }
+      25% { transform: translate(-2px, 1px); }
+      50% { transform: translate(2px, -1px); }
+      75% { transform: translate(-1px, -2px); }
+      100% { transform: translate(1px, 2px); }
+    }
+    .view {
+      width: min(640px, 100%);
+      display: none;
+      margin: 0 0 12px;
+      border: 1px solid #111;
+      background: #111;
+      position: relative;
+      aspect-ratio: 16 / 10;
+    }
+    .view.on { display: block; }
+    .view img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .badge {
+      position: absolute; left: 10px; bottom: 10px;
+      padding: 4px 8px;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      background: #f6f4ef;
+      color: #111;
+    }
     .chat {
       width: min(640px, 100%);
-      flex: 1;
-      min-height: 150px;
-      max-height: 280px;
+      min-height: 72px;
+      max-height: 160px;
       overflow: auto;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      padding: 4px 2px 16px;
+      gap: 8px;
+      margin-bottom: 12px;
     }
-    .chat:empty::after {
-      content: "Say hey. I’ll ask if you’re okay — or ask me the weather.";
-      color: #8d89a3;
-      text-align: center;
-      margin: auto;
-      font-family: "Instrument Serif", serif;
-      font-style: italic;
-      font-size: 20px;
-    }
-    .bubble {
-      max-width: 80%;
-      padding: 12px 16px;
-      border-radius: 22px;
-      line-height: 1.4;
-      font-size: 16px;
-    }
-    .you {
-      align-self: flex-end;
-      background: linear-gradient(180deg, #5b7dff, #4a5fd4);
-    }
-    .bot {
-      align-self: flex-start;
-      background: var(--glass);
-      border: 1px solid var(--line);
-      backdrop-filter: blur(16px);
-    }
+    .bubble { max-width: 80%; padding: 8px 12px; font-size: 14px; line-height: 1.35; }
+    .you { align-self: flex-end; background: #111; color: #f6f4ef; }
+    .bot { align-self: flex-start; border: 1px solid #111; }
     .row {
       width: min(640px, 100%);
       display: flex;
-      gap: 10px;
-      padding: 8px;
-      border-radius: 999px;
-      background: rgba(12, 10, 22, 0.65);
-      border: 1px solid var(--line);
-      backdrop-filter: blur(18px);
+      gap: 8px;
+      border-bottom: 1px solid #111;
+      padding: 6px 0;
     }
     input {
       flex: 1;
       border: 0;
       background: transparent;
-      color: var(--ink);
       font: inherit;
-      font-size: 16px;
-      padding: 10px 14px;
+      font-size: 15px;
       outline: none;
+      color: #111;
     }
     .icon, .go {
-      width: 46px; height: 46px;
-      border: 0;
-      border-radius: 50%;
+      border: 1px solid #111;
+      background: #f6f4ef;
+      color: #111;
       cursor: pointer;
       font: inherit;
-      font-weight: 600;
+      padding: 8px 14px;
     }
-    .icon {
-      background: rgba(255,255,255,0.08);
-      color: var(--ink);
-      font-size: 18px;
-    }
-    .go { background: #f6f3ec; color: #161221; }
+    .go { background: #111; color: #f6f4ef; }
     .chips {
       width: min(760px, 100%);
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin-top: 22px;
+      gap: 8px;
+      margin-top: 18px;
     }
     .chip {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 12px 10px 14px;
-      text-align: left;
-      backdrop-filter: blur(10px);
-      transition: border-color .2s, transform .2s, background .2s;
+      border: 1px solid #111;
+      padding: 10px;
+      animation: buzz 2.2s ease-in-out infinite;
     }
-    .chip.on {
-      border-color: #c9b6ff;
-      background: rgba(180, 150, 255, 0.12);
-      transform: translateY(-3px);
-    }
+    .chip:nth-child(odd) { animation-delay: 0.3s; }
+    .chip.on { background: #111; color: #f6f4ef; }
     .chip kbd {
       display: block;
-      color: #9b97ad;
       font-size: 10px;
       letter-spacing: 0.14em;
       font-family: inherit;
     }
-    .chip b { display: block; font-size: 22px; margin-top: 6px; font-weight: 500; }
-    @media (max-width: 700px) {
-      .chips { grid-template-columns: repeat(2, 1fr); }
-      .stage { width: 180px; height: 180px; }
-    }
+    .chip b { display: block; font-size: 20px; margin-top: 4px; font-weight: 500; }
+    @media (max-width: 700px) { .chips { grid-template-columns: repeat(2, 1fr); } }
   </style>
 </head>
 <body>
-  <div class="grain"></div>
   <div class="wrap">
-    <div class="brand"><span class="dot"></span> RUOK</div>
-    <h1 class="title">are you <em>okay?</em></h1>
-    <div class="stage">
-      <div class="halo"></div>
-      <div id="orb" class="orb"></div>
+    <canvas id="field"></canvas>
+    <div id="orb" class="orb"></div>
+    <div id="status" class="status">move your mouse through the letters</div>
+    <label class="voices">voice
+      <select id="voice"></select>
+    </label>
+    <div class="pills">
+      <button type="button" data-q="I don't have enough food">food</button>
+      <button type="button" data-q="I need a safe place to stay">shelter</button>
+      <button type="button" data-q="I'm not okay. Can you stay with me?">support</button>
+      <button type="button" data-q="I need to report a hazard">hazard</button>
     </div>
     <div id="view" class="view">
       <img id="cam" alt="Robot camera" />
       <div id="badge" class="badge">camera</div>
     </div>
-    <div id="status" class="status">listening to the robot…</div>
-    <div class="pills">
-      <button type="button" data-q="what's the humidity?">humidity</button>
-      <button type="button" data-q="how's the weather?">weather</button>
-      <button type="button" data-q="I need food">food</button>
-      <button type="button" data-q="I need shelter">shelter</button>
-    </div>
     <div id="chat" class="chat"></div>
     <form class="row" id="form">
-      <button class="icon" type="button" id="mic" title="Talk">●</button>
-      <input id="q" autocomplete="off" placeholder="Ask the weather, or what you need…" />
+      <button class="icon" type="button" id="mic">talk</button>
+      <input id="q" autocomplete="off" placeholder="food, shelter, or if you're not okay" />
       <button class="go" type="submit">ask</button>
     </form>
     <div class="chips">
+      <div class="chip" id="c-state"><kbd>STATE</kbd><b id="v-state">waiting</b></div>
+      <div class="chip" id="c-us_cm"><kbd>DISTANCE</kbd><b id="v-us_cm">—</b></div>
+      <div class="chip" id="c-touch"><kbd>TOUCH</kbd><b id="v-touch">no</b></div>
       <div class="chip" id="c-humidity"><kbd>HUMIDITY</kbd><b id="v-humidity">—</b></div>
       <div class="chip" id="c-temp_c"><kbd>TEMP</kbd><b id="v-temp_c">—</b></div>
       <div class="chip" id="c-rain"><kbd>RAIN</kbd><b id="v-rain">—</b></div>
-      <div class="chip" id="c-light"><kbd>LIGHT</kbd><b id="v-light">—</b></div>
-      <div class="chip" id="c-us_cm"><kbd>DISTANCE</kbd><b id="v-us_cm">—</b></div>
-      <div class="chip" id="c-pir"><kbd>MOTION</kbd><b id="v-pir">—</b></div>
-      <div class="chip" id="c-vibe"><kbd>SHAKE</kbd><b id="v-vibe">—</b></div>
-      <div class="chip" id="c-state"><kbd>STATE</kbd><b id="v-state">idle</b></div>
     </div>
   </div>
   <script>
+    const glyphs = ".,'`|:-*iIl!°·";
+    const canvas = document.getElementById("field");
+    const ctx = canvas.getContext("2d");
+    const mouse = { x: -9999, y: -9999 };
+    let bits = [];
+
+    function build() {
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const off = document.createElement("canvas");
+      off.width = w;
+      off.height = h;
+      const o = off.getContext("2d");
+      const size = Math.min(w * 0.16, 92);
+      o.fillStyle = "#000";
+      o.font = "700 " + size + "px Helvetica, Arial, sans-serif";
+      o.textAlign = "center";
+      o.textBaseline = "middle";
+      o.fillText("RUOK?", w / 2, h / 2);
+      const img = o.getImageData(0, 0, w, h).data;
+      bits = [];
+      const gap = w < 500 ? 5 : 4;
+      for (let y = 0; y < h; y += gap) {
+        for (let x = 0; x < w; x += gap) {
+          if (img[(y * w + x) * 4 + 3] > 80) {
+            bits.push({
+              hx: x, hy: y, x: x, y: y, vx: 0, vy: 0,
+              ch: glyphs[(x + y) % glyphs.length],
+            });
+          }
+        }
+      }
+    }
+
+    function tick() {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "#111";
+      ctx.font = "11px ui-monospace, Menlo, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const p of bits) {
+        const dx = p.x - mouse.x;
+        const dy = p.y - mouse.y;
+        const d = Math.hypot(dx, dy) || 0.001;
+        if (d < 90) {
+          const f = (90 - d) / 90;
+          p.vx += (dx / d) * f * 6.5;
+          p.vy += (dy / d) * f * 6.5;
+        }
+        p.vx += (p.hx - p.x) * 0.06;
+        p.vy += (p.hy - p.y) * 0.06;
+        p.vx *= 0.78;
+        p.vy *= 0.78;
+        p.x += p.vx;
+        p.y += p.vy;
+        ctx.fillText(p.ch, p.x, p.y);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    canvas.addEventListener("mousemove", (e) => {
+      const r = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - r.left;
+      mouse.y = e.clientY - r.top;
+    });
+    canvas.addEventListener("mouseleave", () => { mouse.x = -9999; mouse.y = -9999; });
+    window.addEventListener("resize", build);
+    build();
+    tick();
+
     const chat = document.getElementById("chat");
     const orb = document.getElementById("orb");
     const status = document.getElementById("status");
@@ -306,12 +296,10 @@
       chat.appendChild(d);
       chat.scrollTop = chat.scrollHeight;
     }
-
     function setChip(id, value) {
       const el = document.getElementById("v-" + id);
       if (el) el.textContent = value;
     }
-
     function flash(keys) {
       document.querySelectorAll(".chip").forEach((c) => c.classList.remove("on"));
       (keys || []).forEach((k) => {
@@ -319,19 +307,23 @@
         if (c) c.classList.add("on");
       });
     }
-
     async function poll() {
       try {
         const s = await (await fetch("/api/state")).json();
+        const mode = s.state || "waiting";
+        setChip("state", mode);
+        setChip("us_cm", s.us_cm >= 0 ? s.us_cm + " cm" : "—");
+        setChip("touch", s.touch ? "yes" : "no");
         setChip("humidity", s.humidity >= 0 ? s.humidity.toFixed(0) + "%" : "—");
         setChip("temp_c", s.temp_c >= 0 ? s.temp_c.toFixed(0) + "°" : "—");
         setChip("rain", s.wet ? "wet" : "dry");
-        setChip("light", s.dark ? "dark" : "bright");
-        setChip("us_cm", s.us_cm >= 0 ? s.us_cm + " cm" : "—");
-        setChip("pir", s.someone ? "yes" : "no");
-        setChip("vibe", s.jostled ? "yes" : "no");
-        setChip("state", s.state || "idle");
-        status.textContent = (s.voice || "voice") + (s.place ? " · " + s.place : " · ask from the sensors");
+        const line = {
+          waiting: "waiting  ·  over 120 cm",
+          approaching: "approaching  ·  25 to 120 cm",
+          stopped: "stopped  ·  25 cm or closer",
+          help: "help  ·  touch  ·  stay stopped",
+        };
+        status.textContent = line[mode] || mode;
         const view = document.getElementById("view");
         const cam = document.getElementById("cam");
         const badge = document.getElementById("badge");
@@ -340,24 +332,48 @@
           cam.src = "/api/frame.jpg?t=" + Date.now();
           badge.textContent = s.person ? "person" : "no person";
           badge.className = "badge" + (s.person ? " yes" : "");
-        } else {
-          view.classList.remove("on");
-        }
+        } else view.classList.remove("on");
       } catch (e) {}
     }
+    const voiceSel = document.getElementById("voice");
+    function fillVoices() {
+      const all = speechSynthesis.getVoices();
+      if (!all.length) return;
+      const keep = voiceSel.value;
+      voiceSel.innerHTML = "";
+      all.forEach((v, i) => {
+        const o = document.createElement("option");
+        o.value = i;
+        o.textContent = v.name + (v.lang ? " (" + v.lang + ")" : "");
+        voiceSel.appendChild(o);
+      });
+      const boy = all.findIndex((v) => /bryan|brian/i.test(v.name));
+      const male = all.findIndex((v) => /male|daniel|david|alex|fred|tom|guy|boy|james|mark/i.test(v.name));
+      if (keep) voiceSel.value = keep;
+      else if (boy >= 0) voiceSel.value = String(boy);
+      else if (male >= 0) voiceSel.value = String(male);
+    }
+    fillVoices();
+    speechSynthesis.onvoiceschanged = fillVoices;
 
-    function talk(text) {
+    let followTimer = null;
+    function talk(text, after) {
       if (!window.speechSynthesis || !text) return;
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
+      const pick = speechSynthesis.getVoices()[Number(voiceSel.value)];
+      if (pick) u.voice = pick;
       u.rate = 0.95;
-      u.pitch = 1.05;
-      u.onend = () => { orb.className = "orb"; };
+      u.pitch = 0.85;
+      u.onend = () => {
+        orb.className = "orb";
+        if (after) after();
+      };
       window.speechSynthesis.speak(u);
     }
-
     async function ask(text) {
       if (!text) return;
+      if (followTimer) { clearTimeout(followTimer); followTimer = null; }
       bubble("you", text);
       q.value = "";
       orb.className = "orb listen";
@@ -369,9 +385,15 @@
       bubble("bot", res.reply);
       flash(res.highlight);
       orb.className = "orb talk";
-      talk(res.reply);
+      talk(res.reply, () => {
+        if (!res.followup) return;
+        followTimer = setTimeout(() => {
+          bubble("bot", res.followup);
+          orb.className = "orb talk";
+          talk(res.followup);
+        }, res.followup_ms || 5000);
+      });
     }
-
     document.getElementById("form").addEventListener("submit", (e) => {
       e.preventDefault();
       ask(q.value);
@@ -381,16 +403,24 @@
     });
     document.getElementById("mic").addEventListener("click", () => {
       const R = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!R) { q.placeholder = "Type it — this browser has no mic speech"; return; }
+      if (!R) { q.placeholder = "type it — no mic in this browser"; return; }
       const rec = new R();
       rec.lang = "en-US";
       rec.onresult = (ev) => ask(ev.results[0][0].transcript);
       rec.start();
-      orb.className = "orb listen";
     });
-
+    const HELLO = "Hello, I am RUOK. Can I help you?";
+    function greet() {
+      if (chat.dataset.greeted) return;
+      chat.dataset.greeted = "1";
+      bubble("bot", HELLO);
+      orb.className = "orb talk";
+      talk(HELLO);
+    }
     setInterval(poll, 400);
     poll();
+    fillVoices();
+    setTimeout(greet, 400);
   </script>
 </body>
 </html>
