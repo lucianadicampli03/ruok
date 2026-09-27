@@ -324,7 +324,6 @@
           help: "help  ·  touch  ·  stay stopped",
         };
         status.textContent = line[mode] || mode;
-        if (mode === "stopped" || mode === "help") greet();
         const view = document.getElementById("view");
         const cam = document.getElementById("cam");
         const badge = document.getElementById("badge");
@@ -421,6 +420,7 @@
     setInterval(poll, 400);
     poll();
     fillVoices();
+    setTimeout(greet, 400);
   </script>
 </body>
 </html>
