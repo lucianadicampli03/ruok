@@ -32,7 +32,9 @@ def make_handler(brain):
             if path == "/api/state":
                 sit = brain.last_sit
                 us = sit.us_cm
-                if sit.touch or sit.tapped or (0 <= us <= 25):
+                if sit.touch or sit.tapped:
+                    hw = "help"
+                elif 0 <= us <= 25:
                     hw = "stopped"
                 elif us <= 120:
                     hw = "approaching"
